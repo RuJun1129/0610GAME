@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>暗影遺跡：勇者的試煉</title>
+    <style>
+        body {
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #000;
+            /* Default background in case image doesn't load */
+        }
+
+        #backgroundWrapper {
+            width: 80vw;
+            /* Use viewport width units */
+            max-width: 800px;
+            /* Maximum width remains 800px */
+            height: 80vw;
+            /* Height is set to be the same in viewport width units, approximating the width */
+            max-height: 800px;
+            /* Maximum height to match the maximum width */
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            background-image: url('./img/opennig.jpeg');
+            /* Replace with your image path */
+            background-size: contain;
+            /* Ensures the image is fully visible without stretching */
+            background-repeat: no-repeat;
+            background-position: center bottom;
+        }
+
+        #gameContainer {
+            width: 100%;
+            /* Takes the full width of the background wrapper */
+            height: 200px;
+            /* Adjusted height to position at the bottom of the image */
+            background: rgba(0, 0, 0, 0.8);
+            /* Semi-transparent black background */
+            padding: 10px;
+            display: none;
+            box-sizing: border-box;
+            border: 1px solid #fff;
+            overflow: hidden;
+        }
+
+        #messages {
+            height: 80%;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        .message {
+            margin: 5px 0;
+        }
+
+        .userMessage {
+            color: #0f0;
+        }
+
+        .botMessage {
+            color: #ff0;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            background: transparent;
+            border: none;
+            border-top: 1px solid #fff;
+            color: white;
+            font-size: 16px;
+        }
+
+        #startButton,
+        #introButton {
+            padding: 15px 30px;
+            /* Increase padding for a better look */
+            font-size: 20px;
+            /* Adjust font size */
+            cursor: pointer;
+            /* Position it within the wrapper */
+            margin-bottom: 20px;
+            color: white;
+            /* Text color */
+            background: rgba(0, 0, 0, 0.8);
+            /* Same semi-transparent background as introBlock */
+            border: 1px solid #fff;
+            /* Same border as introBlock */
+            border-radius: 5px;
+            /* Rounded corners similar to introBlock */
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            /* Subtle shadow for depth */
+            transition: all 0.3s ease;
+            /* Smooth transition for hover effects */
+        }
+
+        #startButton:hover,
+        #introButton:hover {
+            background: rgba(0, 0, 0, 1);
+            /* Darker background on hover */
+            box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.5);
+            /* Slightly larger shadow on hover */
+            transform: scale(1.05);
+            /* Slightly enlarge on hover */
+        }
+
+        #introBlock {
+            width: 80%;
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0.8);
+            /* Semi-transparent background */
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid #fff;
+            margin-bottom: 20px;
+            /* Space between intro block and start button */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+            /* Initially hidden */
+        }
+    </style>
+</head>
+
+<body>
+    <div id="introBlock">
+        <h2>歡迎來到《暗影遺跡：勇者的試煉》</h2>
+        <p>在《暗影遺跡：勇者的試煉》中，每一個選擇都將帶來不同的結果和體驗。你將扮演勇敢的冒險者，肩負著拯救艾瑞斯大陸的重任，與你的盟友莉亞一起，面對重重考驗。請擊敗邪惡的暗影之王，或是在失敗中反思與成長。選擇沒有對錯，這是一場純粹的冒險之旅，請享受在奇幻世界中的驚險與挑戰。</p>
+        <button id="startButton">開始遊戲</button>
+    </div>
+    <div id="backgroundWrapper">
+        <button id="introButton">遊戲介紹</button>
+        <div id="gameContainer">
+            <div id="messages"></div>
+            <form id="messageForm">
+                <input type="text" id="messageInput" placeholder="Type your command...">
+            </form>
+        </div>
+    </div>
+
+</body>
+<script>
+    var conversationHistory = [];
+
+    var apiKey = prompt("Please enter your API key:", "");
+    var userName = prompt("Please enter your name:", "");
+
+    if (!apiKey || !userName) {
+        alert("API key and name are required to use the chatroom.");
+        // Optionally, redirect or disable form
+    } else {
+        document.getElementById('messageForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            var inputElement = document.getElementById('messageInput');
+            var message = inputElement.value;
+
+            addToConversationHistory('user', message);
+            displayMessage(message, 'user');
+            inputElement.disabled = true;
+            fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    "contents": conversationHistory,
+                    "safetySettings": [
+                        {
+                            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                            "threshold": "BLOCK_NONE"
+                        },
+                        {
+                            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                            "threshold": "BLOCK_NONE"
+                        },
+                    ],
+                    "generationConfig": {
+                        "stopSequences": [
+                            ""
+                        ],
+                        "temperature": 2.0,
+                        "maxOutputTokens": 2048,
+                        "topP": 0.8,
+                        "topK": 10
+                    }
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    var responseText = data.candidates[0].content.parts[0].text;
+                    addToConversationHistory('model', responseText);
+                    displayMessage(responseText, 'bot');
+                    inputElement.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    inputElement.disabled = false;
+                });
+
+            document.getElementById('messageInput').value = '';
+        });
+    }
+
+    function addToConversationHistory(role, text) {
+        conversationHistory.push({
+            "role": role,
+            "parts": [{
+                "text": text
+            }]
+        });
+    }
+
+    function displayMessage(message, sender) {
+        var messageElement = document.createElement('div');
+        var formatMessage = formatText(message);
+        messageElement.classList.add('message');
+        if (sender === 'user') {
+            messageElement.classList.add('userMessage');
+        } else {
+            messageElement.classList.add('botMessage');
+        }
+        document.getElementById('messages').appendChild(messageElement);
+        updateSceneImage(message);
+        // Function to display the text one character at a time
+        function typeText(element, text, index) {
+            if (index < text.length) {
+                let char = text[index];
+                if (char === '<') {
+                    let endIndex = text.indexOf('>', index);
+                    if (endIndex !== -1) {
+                        element.innerHTML += text.substring(index, endIndex + 1);
+                        index = endIndex + 1;
+                    }
+                } else {
+                    element.innerHTML += char;
+                    index++;
+                }
+                setTimeout(function () {
+                    typeText(element, text, index);
+                }, 75); // Adjust typing speed by changing the delay (in milliseconds)
+            } else {
+                // Scroll to bottom after the entire message is displayed
+                document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            }
+        }
+
+        // Start typing the formatted message
+        typeText(messageElement, formatMessage, 0);
+    }
+
+    function updateSceneImage(responseText) {
+        let sceneMatch = responseText.match(/場景：(.*?)\s/); // 使用正則表達式匹配場景描述
+        if (sceneMatch && sceneMatch[1]) {
+            let scene = sceneMatch[1];
+            console.log(scene);
+            // 檢查scene是否包含"宿舍"
+            if (scene.includes("家中")) {
+                document.getElementById('backgroundWrapper').style.backgroundImage = "url('./img/home.jpeg')";
+            } else if (scene.includes("森林")) {
+                document.getElementById('backgroundWrapper').style.backgroundImage = "url('./img/forest.jpeg')";
+            } else if (scene.includes("北方遺跡")) {
+                document.getElementById('backgroundWrapper').style.backgroundImage = "url('./img/relic.jpeg')";
+            }else if (scene.includes("暗影之王")) {
+                document.getElementById('backgroundWrapper').style.backgroundImage = "url('./img/king.jpeg')";
+            }else if (scene.includes("山巔")) {
+                document.getElementById('backgroundWrapper').style.backgroundImage = "url('./img/hill.jpeg')";
+            }
+        }
+    }
+
+    function formatText(text) {
+        // Replace ** with a new line and bold tag
+        let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<br><strong>$1</strong>');
+
+        // Replace * with a new line and bullet point
+        formattedText = formattedText.replace(/\*(.*?)\s/g, '<br>$1');
+
+        return formattedText;
+    }
+
+    document.getElementById('introButton').addEventListener('click', function () {
+        document.getElementById('introBlock').style.display = 'block';
+        this.style.display = 'none'; // Hide the intro button
+        document.getElementById('startButton').style.display = 'block'; // Show the start button
+    });
+
+    document.getElementById('startButton').addEventListener('click', function () {
+        // Change background image and display settings when starting the game
+        document.getElementById('backgroundWrapper').style.backgroundImage = "url('./img/dorm.jpeg')";
+        document.getElementById('introBlock').style.display = 'none'; // Show the game container
+        document.getElementById('gameContainer').style.display = 'inline';
+        document.getElementById('introButton').style.display = 'none'; // Hide the start button
+
+        conversationHistory.push({
+            "role": 'user',
+            "parts": [{
+                "text": `腳本：
+                        """
+                        遊戲標題：暗影遺跡：勇者的試煉
+                        遊戲背景
+                        在一個被稱為艾瑞斯大陸的地方，古老的魔法和神秘的生物共同存在。您是一位年輕的冒險者，名字叫做${userName}，您收到了一個關於古老遺跡的神秘信件，這信件似乎預示著一場改變世界的冒險。
+
+                        主要角色：
+                        ${userName}：主角，年輕冒險者。
+                        莉亞：神秘的魔法師，${userName}的同伴。
+                        賽德：龍族戰士，受詛咒的護衛者。
+                        暗影之王： 主要反派，企圖統治艾瑞斯大陸。
+
+                        遊戲腳本流程
+
+                        序幕——神秘信件：
+                        （場景：家中）
+                        桌上放著一封泛黃的信件
+                        ${userName}：這封信上說，在北方的遺跡裡，藏著可以改變世界的秘密。這到底是什麼意思？
+                        選擇A：決定前往北方遺跡。
+                        選擇B：這可能是個陷阱，決定詢問莉亞的意見。
+
+                        第一章——遺跡之旅：
+                        （場景：森林）
+                        ${userName}獨自上路，前往北方遺跡。在路上，你遇到了一位神秘的魔法師。
+                        莉亞：你就是另一個收到信件的人吧。我是莉亞，我也在尋找這個秘密。
+                        ${userName}：你知道信裡說的秘密是什麼嗎？
+                         選擇A1：和莉亞結伴同行。 （選擇後進入第二章——達到遺跡劇情）
+                         選擇A2：拒絕與莉亞同行，莉亞其實一直在後方默默提供支援。（選擇後進入第二章——達到遺跡劇情）
+
+                        若選擇B，${userName}認為這可能是個陷阱，決定詢問莉亞的意見。
+                        ${userName}去找他的朋友莉亞，她是一位有經驗的魔法師。
+                        莉亞：這信件確實看起來很可疑，但也有可能是真的。我們應該小心行事。
+                        ${userName}：那我們該怎麼辦？
+                         選擇B1：和莉亞結伴同行，前往北方遺跡。（選擇後進入第二章——達到遺跡劇情）
+                         選擇B2：決定獨自前往，莉亞則在後方提供支援。（選擇後進入第二章——達到遺跡劇情）
+
+                        第二章——達到遺跡：
+                        （場景：北方遺跡）
+                        ${userName}最終來到北方遺跡。在遺跡門前，你們遇到了一個龐大的龍族戰士，賽德。
+                        賽德：我受詛咒在此守護遺跡。想要進入，必須通過我的考驗。
+                        ${userName}：我們接受你的考驗！
+                        選擇A：選擇智慧的考驗。（選擇後進入智慧的考驗劇情）
+                        選擇B：選擇力量的考驗。（選擇後進入力量的考驗劇情）
+
+                        智慧的考驗：
+                        （場景：賽德給出了三個謎題，${userName}和莉亞需要解開它們才能進入遺跡。）
+                        賽德：哈哈哈，凡人啊，你們就是來挑戰我的智慧嗎？
+
+                        第一個謎題：
+                        賽德：解開這個謎題：‘什麼東西越多，卻越不易看見？’
+                        選擇A1-1：答案是黑暗！賽德：嘖嘖嘖，你的愚蠢只會讓你更加痛苦。再給你一次機會。（選擇後接著重新進入第一個謎題劇情）
+                        選擇A1-2：答案是光明！賽德：呵呵呵，你有些聰明，但你的智慧不足以擊敗我。（選擇後接著進入第二個謎題劇情）
+
+                        第二個謎題：
+                        (場景：通過第一個謎題後，${userName}和莉亞面對了第二個謎題。)
+                        賽德：你們這些渺小的人類，你們真的以為你們能夠擊敗我嗎？
+                        賽德：解開這個謎題：‘什麼東西越高，越容易跌下來？’
+                        選擇A2-1：答案是自負！（選擇後賽德：嘿嘿嘿，你確實有些悟性。但悟性和智慧是不同的。接著進入第三個謎題劇情）
+                        選擇A2-2：答案是謙虛！（選擇後賽德：真是可笑，你們這些人類總是以為謙虛能夠拯救你們。再給你一次機會。接著重新進入第二個謎題劇情)
+
+                        第三個謎題：
+                        (場景：通過第二個謎題後，${userName}和莉亞迎來了最後一個謎題。)
+                        賽德：你們已經接近了，但你們永遠無法擊敗我。
+                        賽德：解開這個謎題：‘一個人控制著他的時間，但沒有人能控制它。’
+                        選擇A3-1：答案是年齡！（選擇後賽德：竟竟竟然，呃呃呃呃啊啊。最終，賽德崩解成一團黑色的煙霧，消失在空氣中。接著進入最終章——暗影之王劇情）
+                        選擇A3-2：答案是未來！（選擇後賽德：真是可悲，你們被你們的愚昧所困。再給你們最後一次機會。接著重新進入第三個謎題劇情）
+
+                        力量的考驗：
+                        賽德：準備好迎接我的力量吧！
+                        ${userName}：來吧，我不會退縮！
+                        選擇B1-1：直接猛攻賽德。（選擇後進入猛攻賽德劇情）
+                        選擇B2-1：運用魔法對抗賽德。（選擇後進入運用魔法對抗賽德劇情）
+
+                        猛攻賽德：
+                        你毫不畏懼地向賽德發動了猛烈的攻擊，揮舞著手中的劍，不斷地擊打著賽德的防禦。然而，賽德的身體彷彿堅固如岩石，你的攻擊似乎無法造成實質性的傷害。
+                        賽德：你的努力是徒勞的，凡人！你永遠無法擊敗我！
+                        你感到力量的枯竭，但你仍不肯放棄，繼續奮力攻擊。
+                        你的努力終於開始見到成果，你的劍劈中了一擊，打開了賽德的防禦，使得你能夠對賽德造成一些傷害。賽德被這突如其來的一擊震驚，但隨即展現出更強大的攻擊，他用巨大的拳頭猛烈地擊打你，將你擊飛到遠處。
+                        ${userName}：（喘息）我不能再退縮！我要為了人民，為了正義戰鬥到底！
+                        你鼓起最後的力量，再次衝向賽德，你將所有的力量都集中在一擊之上，用盡全力向賽德的弱點猛攻。
+                        賽德：這...這不可能！
+                        你的劍刺穿了賽德的防禦，賽德發出震天的慘叫，身體開始崩解。最終，賽德崩解成一團黑色的煙霧，消失在空氣中。
+                        ${userName}：我做到了！
+                        （進入最終章——暗影之王劇情）
+
+                        運用魔法對抗賽德：
+                        你深吸一口氣，集中精神，開始施展你的魔法。你的手指閃爍著微光，一道道魔法符文出現在空中，然後朝著賽德飛去。火焰和雷電在賽德身旁爆裂，但賽德似乎毫不為所動，他堅韌的身體抵擋住了你的魔法攻擊。
+                        賽德：嘿嘿嘿，你的魔法對我來說太微不足道了，凡人！
+                        你感到一絲絲的絕望，但你知道現在不能放棄，你必須繼續戰鬥下去。
+                        你持續不斷地尋找著攻擊的破綻。在一次魔法攻擊中，你意外發現了賽德身體中的一處薄弱之處。
+                        ${userName}：我找到了一個機會！
+                        你毫不猶豫地向著賽德的薄弱之處發動了一道烈焰魔法，這一擊正中要害。賽德發出震天的慘叫，身體開始崩解。最終，賽德崩解成一團黑色的煙霧，消失在空氣中。
+                        ${userName}：我成功了！
+                        （進入最終章——暗影之王劇情）
+
+                        第三章——暗影之王：
+                        (場景：暗影之王)
+                        通過遺跡考驗後，${userName}和莉亞終於見到了暗影之王。
+                        暗影之王：你們竟然真的來到這裡，但一切已經太遲了！
+                        艾倫：我們不會讓你成功的！
+                        選擇C1：和莉亞聯手對抗暗影之王。（選擇後進入最終章劇情）
+                        選擇C2：單獨對抗暗影之王。（選擇後進入最終章劇情）
+
+                        最終章：
+                        最終章Ⅰ-Ⅰ：如果${userName}選擇在關鍵時刻和伙伴同心協力（A1和B1和C1），${userName}便能夠和伙伴一起擊敗暗影之王並拯救艾瑞斯大陸。
+                        (場景：暗影之王)
+                        ${userName}和莉亞在洞穴深處與暗影之王展開最終決戰。
+                        暗影之王： 哈哈哈，你們真是愚蠢，竟然敢挑戰我！
+                        ${userName}： 我們不會退縮，為了艾瑞斯大陸，我們必須打倒你！
+                        莉亞： 我們攜手並肩，共同戰鬥！
+                        ${userName}和莉亞合力攻擊暗影之王，你們的力量和魔法相互輝映，最終成功地打倒了暗影之王。他的身體開始崩解，發出淒厲的慘叫聲，最後化為一團黑霧消散在空氣中。
+                        ${userName}： 我們成功了！
+                        莉亞： 艾瑞斯大陸終於得救了！
+                        隨著暗影之王的消失，洞穴內的黑暗和邪惡氣息也隨之消散，陽光重新照亮了整個大陸。人民歡呼雀躍，慶祝他們的英雄歸來。
+                        （進入最終章Ⅰ-Ⅱ劇情）
+
+                        最終章Ⅰ-Ⅱ
+                        (場景：山巔)
+                        你和莉亞站在山巔，俯瞰著恢復生機的艾瑞斯大陸。
+                        ${userName}： 我們做到了，莉亞。
+                        莉亞：這一切都是我們共同努力的結果。
+                        ${userName}： 我們將繼續守護這片土地，確保它永遠不再受到黑暗的威脅。
+
+
+                        最終章Ⅱ：如果${userName}選擇在關鍵時刻仍堅持己見，只想獨自面對困難（A2和B2和C2），${userName}則未能打敗暗影之王，使得艾瑞斯大陸陷入永恒的黑暗。
+                        (場景：暗影之王)
+                        你和莉亞在洞穴深處與暗影之王展開最終決戰。
+                        暗影之王： “哈哈哈，你真是愚蠢，竟然敢挑戰我！”
+                        ${userName}： 我不會退縮的，為了艾瑞斯大陸，我必須打倒你！
+                        ${userName}奮力戰鬥，但暗影之王的力量太過強大。你的攻擊被輕易化解，黑暗的力量不斷壓迫著你，最終你被逼到了絕境。
+                        暗影之王：你們的努力是徒勞的，凡人。迎接你們的只有無盡的黑暗！
+                        暗影之王釋放出更強大的黑暗力量，洞穴開始崩塌，邪惡的氣息迅速蔓延，整個艾瑞斯大陸陷入了一片混沌。
+                        ${userName}：不……這不可能！
+                        莉亞： 我們不能放棄，${userName}！還有希望……
+                        然而，你們的力量已經被耗盡，無力反抗。黑暗力量迅速吞噬了整個大陸，天空被濃重的黑雲覆蓋，生靈塗炭，人民陷入了無盡的恐慌和絕望。
+                        ${userName}：莉亞……對不起……我失敗了……
+                        莉亞：不……${userName}……這還不是結束……哪怕在黑暗中，我們也要堅持下去……”
+                        但是最終，${userName}和莉亞被無盡的黑暗吞噬，艾瑞斯大陸陷入了永恒的黑暗。這片曾經繁榮的土地，成為了黑暗之王的領域，沒有一絲光明，沒有一絲希望。
+
+                        遊戲結尾
+                        遊戲最後將根據${userName}的選擇提供一段反思，強調失敗並不是終點，而是重新開始的契機。團結和堅持是戰勝一切困難的關鍵。"""
+
+                        請根據腳本中的對話，根據"""序幕——神秘信件"""到"""第一章——遺跡之旅"""到"""第二章——達到遺跡"""到"""第三章——暗影之王"""最後到"""最終章"""進行，開始一個文字冒險遊戲，每一次的對話，都需要呈現以下格式與資訊：
+                        <場景>：目前故事的背景為何
+                        <選擇>：在每一次的對話中，你都會根據腳本給我可以選擇的動作，根據我選擇的動作繼續接下來的劇情，整體劇情會圍繞腳本發展。
+
+                        請根據我的選擇進行故事就好，不要幫我做出選擇`
+            }]
+        })
+        fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                "contents": conversationHistory,
+                "safetySettings": [
+                    {
+                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                ],
+                "generationConfig": {
+                    "stopSequences": [
+                        ""
+                    ],
+                    "temperature": 2.0,
+                    "maxOutputTokens": 2048,
+                    "topP": 0.8,
+                    "topK": 10
+                }
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log(conversationHistory);
+                var responseText = data.candidates[0].content.parts[0].text;
+                addToConversationHistory('model', responseText);
+                displayMessage(responseText, 'bot');
+            })
+            .catch(error => console.error('Error:', error));
+    });
+
+
+
+</script>
+
+</html>
